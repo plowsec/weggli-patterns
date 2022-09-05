@@ -105,6 +105,8 @@ This query doesn't work well for format string functions with length specifiers 
 weggli -R '$fn=^[^n]*printf$' -R '$arg=[^"]*' '{$fn($arg);}' src #for fprintf, printf, etc
 
 weggli -R '$fn=nprintf$' -R '$arg=[^"]*' '{$fn($_,$_,$arg);}' src # for snprintf, etc
+```
+
 
 ## integer overflows
 
@@ -141,3 +143,35 @@ if (chmod(file_name, S_IRUSR) == -1) {
 }
 }
 ```
+
+## double free
+
+```
+weggli -R '$fn=free' '{$fn($a);$fn($a);}' doublefree.c
+
+int bad_code1() {
+    char *var = malloc(sizeof(char) * 10);
+    free(var);
+    free(var); // <-bug
+    return 0;
+}
+```
+
+
+## use after free
+
+```
+weggli -R '$fn=free' '{$fn($a);$a;}' use-after-free.c                             
+
+
+use-after-free.c:8
+int bad_code1() {
+    NAME *var;
+    var = (NAME *)malloc(sizeof(struct name));
+    free(var);
+    var->func("use after free");
+    return 0;
+}
+```
+
+
