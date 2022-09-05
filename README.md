@@ -2,7 +2,7 @@
 Collections of patterns for weggli to find nice bugs
 
 
-## find strcpy-like calls with static arrays
+## find strcpy-like/memcpy calls with static arrays
 
 ```
 weggli -R 'func=^str.*cpy$' '{char $b[_]; $func($b, _);}' source
@@ -21,6 +21,44 @@ weggli -R 'func=^str.*cpy$' '{char $b[_]; $func($b, _);}' source
       if(pValue != NULL)
       strcpy(SoftwareVersion,pValue);
 ```
+
+
+## find strcpy-like/memcpy calls with static arrays
+
+```
+weggli -R 'func=.*cpy$' '{char $b[_]; $func($b, _);}' source
+
+    static char SoftwareVersion[256];
+
+    if ( var1 && obj->a )
+    {
+        d = obj->a(obj->h);
+        if ( e < 300 )
+..
+      strcpy(HardwareVersion,pValue);
+    }
+    else if(!strcmp("SoftwareVersion",pParams[i].Name))
+    {
+      if(pValue != NULL)
+      strcpy(SoftwareVersion,pValue);
+```
+
+## find strcpy/memcpy calls with length of source input insteand of length of destination buffer
+
+```
+ weggli -R 'func=.*cpy$' '{$func($_, $a, strlen($a));}' src                                                                                                                                                                                                                                                                             9:50:37
+
+test.c:371
+void some_function(char* conn)
+{
+..
+
+    strncpy(ps->var[0].value, conn, strlen(conn));
+..
+    return;
+}
+```
+
 
 ## malloc-like calls with potential integer overflows
 
