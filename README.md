@@ -99,6 +99,13 @@ return copy;
 
 `weggli -R '$fn=printf$' -R '$arg=[^"]*' '{$fn($arg);}' test2.c`
 
+This query doesn't work well for format string functions with length specifiers such as snprintf. Here is another one (also not perfect):
+
+```
+weggli -R '$fn=^[^n]*printf$' -R '$arg=[^"]*' '{$fn($arg);}' src #for fprintf, printf, etc
+
+weggli -R '$fn=nprintf$' -R '$arg=[^"]*' '{$fn($_,$_,$arg);}' src # for snprintf, etc
+
 ## integer overflows
 
 ```
