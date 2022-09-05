@@ -43,7 +43,7 @@ weggli -R 'func=.*cpy$' '{char $b[_]; $func($b, _);}' source
       strcpy(SoftwareVersion,pValue);
 ```
 
-## find strcpy/memcpy calls with length of source input insteand of length of destination buffer
+## find strcpy/memcpy calls with length of source input instead of length of destination buffer
 
 ```
  weggli -R 'func=.*cpy$' '{$func($_, $a, strlen($a));}' src                                                                                                                                                                                                                                                                             9:50:37
