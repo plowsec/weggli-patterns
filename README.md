@@ -23,25 +23,6 @@ weggli -R 'func=^str.*cpy$' '{char $b[_]; $func($b, _);}' source
 ```
 
 
-## find strcpy-like/memcpy calls with static arrays
-
-```
-weggli -R 'func=.*cpy$' '{char $b[_]; $func($b, _);}' source
-
-    static char buf[256];
-
-    if ( var1 && obj->a )
-    {
-        d = obj->a(obj->h);
-        if ( e < 300 )
-..
-      strcpy(someotherbuf,pValue);
-    }
-    else if(!strcmp("somestring",pParams[i].Name))
-    {
-      if(pValue != NULL)
-      strcpy(buf,pValue);
-```
 
 ## find strcpy/memcpy calls with length of source input instead of length of destination buffer
 
@@ -59,6 +40,15 @@ void some_function(char* conn)
 }
 ```
 
+```
+weggli -R 'func=.*cpy$' '{$func($_, $a._, $a._);}' src                                                                                                                                                                                                                                                                                                   
+test.c:897
+static int stuff(
+..
+        memcpy(buf, header->value.buf, header->value.length);
+..
+}
+```
 
 ## malloc-like calls with potential integer overflows
 
