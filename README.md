@@ -27,8 +27,7 @@ weggli -R 'func=^str.*cpy$' '{char $b[_]; $func($b, _);}' source
 ## find strcpy/memcpy calls with length of source input instead of length of destination buffer
 
 ```
- weggli -R 'func=.*cpy$' '{$func($_, $a, strlen($a));}' src                                                                                                                                                                                                                                                                             9:50:37
-
+weggli --unique -R 'func=.*cpy$' '{$func($_, $a, _($a));}' src                                                                                                                                                                                                                                                  
 test.c:371
 void some_function(char* conn)
 {
