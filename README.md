@@ -136,7 +136,7 @@ if (chmod(file_name, S_IRUSR) == -1) {
 ## double free
 
 ```
-weggli -R '$fn=free' '{$fn($a);$fn($a);}' doublefree.c
+weggli -R '$fn=free' '{$fn($a);not: $a=_;not: return _;$fn($a);}' doublefree.c
 
 int bad_code1() {
     char *var = malloc(sizeof(char) * 10);
