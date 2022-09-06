@@ -7,19 +7,19 @@ Collections of patterns for weggli to find nice bugs
 ```
 weggli -R 'func=^str.*cpy$' '{char $b[_]; $func($b, _);}' source
 
-    static char SoftwareVersion[256];
+    static char buf[256];
 
     if ( var1 && obj->a )
     {
         d = obj->a(obj->h);
         if ( e < 300 )
 ..
-      strcpy(HardwareVersion,pValue);
+      strcpy(someotherbuf,pValue);
     }
-    else if(!strcmp("SoftwareVersion",pParams[i].Name))
+    else if(!strcmp("somestring",pParams[i].Name))
     {
       if(pValue != NULL)
-      strcpy(SoftwareVersion,pValue);
+      strcpy(buf,pValue);
 ```
 
 
@@ -28,19 +28,19 @@ weggli -R 'func=^str.*cpy$' '{char $b[_]; $func($b, _);}' source
 ```
 weggli -R 'func=.*cpy$' '{char $b[_]; $func($b, _);}' source
 
-    static char SoftwareVersion[256];
+    static char buf[256];
 
     if ( var1 && obj->a )
     {
         d = obj->a(obj->h);
         if ( e < 300 )
 ..
-      strcpy(HardwareVersion,pValue);
+      strcpy(someotherbuf,pValue);
     }
-    else if(!strcmp("SoftwareVersion",pParams[i].Name))
+    else if(!strcmp("somestring",pParams[i].Name))
     {
       if(pValue != NULL)
-      strcpy(SoftwareVersion,pValue);
+      strcpy(buf,pValue);
 ```
 
 ## find strcpy/memcpy calls with length of source input instead of length of destination buffer
@@ -73,7 +73,7 @@ weggli -R '$fn=lloc' '{$user_num=atoi(_);$fn($user_num);}' source
 weggli '{ _* $p;NOT: $p = _;$func(&$p);}' source
  
 char *name;
-int objectID = a(val[i].parameterName, &name);
+int id = a(val[i].parameterName, &name);
  ```
  
  ## format string functions calls' return values to index buffers
