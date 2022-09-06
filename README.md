@@ -174,4 +174,103 @@ int bad_code1() {
 }
 ```
 
+## find buffers passed as function arguments and freed within the function body
+
+```
+weggli '_ $fn(_ $buf) {                                                                                        
+    free($buf);
+}' source
+test.c:930
+int parse_stuff(char* Ctx)
+{
+
+    test(Ctx, 0, 0, 1);
+..
+#endif
+    }
+
+    //Free allocated memory
+    free(Ctx->bufferCtx.pBuf);
+    free(Ctx); // <-- 
+
+    return -1;
+}
+```
+
+Each finding must be analyzed to check if the freed buffer is used by the caller or freed one more time by mistake.
+
+
+# Original examples
+
+Examples by felixwilhelm
+
+Calls to memcpy that write into a stack-buffer:
+
+```c
+weggli '{
+    _ $buf[_];
+    memcpy($buf,_,_);
+}' ./target/src
+```
+
+Calls to foo that don't check the return value:
+```c
+weggli '{
+   strict: foo(_);
+}' ./target/src
+```
+
+Potentially vulnerable snprintf() users:
+```c
+weggli '{
+    $ret = snprintf($b,_,_);
+    $b[$ret] = _;
+}' ./target/src
+```
+
+Potentially uninitialized pointers:
+```c
+weggli '{ _* $p;
+NOT: $p = _;
+$func(&$p);
+}' ./target/src
+```
+
+Potentially insecure WeakPtr usage:
+```cpp
+weggli --cpp '{
+$x = _.GetWeakPtr(); 
+DCHECK($x); 
+$x->_;}' ./target/src
+```
+
+Debug only iterator validation:
+```cpp
+weggli -X 'DCHECK(_!=_.end());' ./target/src
+```
+
+Functions that perform writes into a stack-buffer based on
+a function argument. 
+```c
+weggli '_ $fn(_ $limit) {
+    _ $buf[_];
+    for (_; $i<$limit; _) {
+        $buf[$i]=_;
+    }
+}' ./target/src
+```
+
+Functions with the string decode in their name
+```c
+weggli -R func=decode '_ $func(_) {_;}'
+```
+
+Encoding/Conversion functions
+```c
+weggli '_ $func($t *$input, $t2 *$output) {
+    for (_($i);_;_) {
+        $input[$i]=_($output);
+    }
+}' ./target/src
+```
 
