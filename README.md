@@ -151,7 +151,7 @@ int bad_code1() {
 ## use after free
 
 ```
-weggli -R '$fn=free' '{$fn($a);$a;}' use-after-free.c                             
+weggli -R '$fn=free' '{$fn($a);not: $a=_;not: return _;_($a);}' use-after-free.c                             
 
 
 use-after-free.c:8
