@@ -108,6 +108,39 @@ if(i <= 0 || i > objN) return -1;
 return i + b;
 ```
 
+## typical buffer overruns in loops
+
+### Find CVE 2017-9765
+
+```
+weggli ' {                                                                                                                                               
+    _ $buf[_]; $t = $buf;while (_) { $t; }
+}' toto.c
+
+
+toto.c:1395
+static soap_wchar
+soap_get_pi(struct soap *soap)
+{ char buf[64];
+  register char *s = buf;
+  register int i = sizeof(buf);
+  register soap_wchar c = soap_getchar(soap);
+  /* This is a quick way to parse XML PI and we could use a callback instead to
+   * enable applications to intercept processing instructions */
+  while ((int)c != EOF && c != '?')
+  { if (--i > 0)
+    { if (soap_blank(c))
+        c = ' ';
+      *s++ = (char)c;
+    }
+    c = soap_getchar(soap);
+  }
+  *s = '\0';
+  DBGLOG(TEST, SOAP_MESSAGE(fdebug, "XML PI <?%s?>\n", buf));
+..
+}
+```
+
 ## TOCTOU
 
 Needs more function names but you get the idea
@@ -132,6 +165,8 @@ if (chmod(file_name, S_IRUSR) == -1) {
 }
 }
 ```
+
+
 
 ## double free
 
