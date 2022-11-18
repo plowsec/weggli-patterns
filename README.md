@@ -49,6 +49,19 @@ static int stuff(
 }
 ```
 
+## strncpy-like with potential arithmetic errors
+
+```
+weggli --unique -R 'func=.*ncpy$' '{$func($_, _($a), $n - $m);}' source
+
+size_t m = strlen(test->user_data);
+size_t n = m + (s - test->c) - 5;
+strncpy(test->a, test->b, n - m); // n and m are unsigned, if m > n, buffer overflow
+
+```
+
+
+
 ## malloc-like calls with potential integer overflows
 
 ```
