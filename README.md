@@ -238,7 +238,7 @@ Each finding must be analyzed to check if the freed buffer is used by the caller
 
 
 
-# 0xea semgrep's rules
+# 0xdea semgrep's rules
 
 ## buffer overflows
 
@@ -306,8 +306,12 @@ Same
 [**incorrect-use-of-strncat**](https://github.com/0xdea/semgrep-rules/blob/main/c/incorrect-use-of-strncat.yaml). Wrong size argument passed to strncat().
 
 Unfortunately, it's not possible to match buffer length with weggli: https://github.com/weggli-rs/weggli/issues/59
+
+
 So, this one won't work: `weggli -v '{_ $dst[$len];strncat($dst, _, $len);}' test_cases/incorrect-use-of-strncat.c`
-If you run this one instead, you can match them with many false positive.
+
+
+If you run this one `weggli -v '{_ $dst[_];strncat($dst, _, _);}' test_cases/incorrect-use-of-strncat.c` instead, you can match them with many false positive.
 
 For the other queries of the pattern [here](https://github.com/0xdea/semgrep-rules/blob/main/c/incorrect-use-of-strncat.yaml), this query works:
 
@@ -392,7 +396,140 @@ main(int argc, char *argv[])
 ```
 
 * [**incorrect-use-of-sizeof**](https://github.com/0xdea/semgrep-rules/blob/main/c/incorrect-use-of-sizeof.yaml). Accidental use of the sizeof() operator on a pointer instead of its target.
-* [**unterminated-string-strncpy-stpncpy**](https://github.com/0xdea/semgrep-rules/blob/main/c/unterminated-string-strncpy-stpncpy.yaml). Lack of explicit null-termination after strncpy() and stpncpy().
+
+```c
+weggli -R '$fn=alloc$' '{$ptr = $fn(_); sizeof($ptr);}' -p '{_ *$p;sizeof($p);}' test_cases/incorrect-use-of-sizeof.c                      15:20:49
+test_cases/incorrect-use-of-sizeof.c:8
+void bad1()
+{
+	double *foo;
+
+	// ruleid: raptor-incorrect-use-of-sizeof
+	foo = (double *)malloc(sizeof(foo));
+}
+test_cases/incorrect-use-of-sizeof.c:41
+void bad3()
+{
+	AnObj *o = (AnObj *) malloc(sizeof(AnObj));
+	// ruleid: raptor-incorrect-use-of-sizeof
+	memset(o, 0x0, sizeof(o));
+}
+test_cases/incorrect-use-of-sizeof.c:48
+char *read_username(int sockfd)
+{
+	char *buffer, *style, userstring[1024];
+	int i;
+
+	buffer = (char *)malloc(1024);
+
+	if (!buffer) {
+		error("buffer allocation failed: %m");
+		return NULL;
+	}
+..
+		*style++ = '\0';
+	sprintf(buffer, "username=%.32s", userstring);
+
+	if (style)
+	// ruleid: raptor-incorrect-use-of-sizeof
+		snprintf(buffer, sizeof(buffer) - strlen(buffer) - 1, ", style=%s\n", style);
+
+	return buffer;
+}
+test_cases/incorrect-use-of-sizeof.c:8
+void bad1()
+{
+	double *foo;
+
+	// ruleid: raptor-incorrect-use-of-sizeof
+	foo = (double *)malloc(sizeof(foo));
+}
+test_cases/incorrect-use-of-sizeof.c:48
+char *read_username(int sockfd)
+{
+	char *buffer, *style, userstring[1024];
+	int i;
+
+	buffer = (char *)malloc(1024);
+
+	if (!buffer) {
+..
+		*style++ = '\0';
+	sprintf(buffer, "username=%.32s", userstring);
+
+	if (style)
+	// ruleid: raptor-incorrect-use-of-sizeof
+		snprintf(buffer, sizeof(buffer) - strlen(buffer) - 1, ", style=%s\n", style);
+
+	return buffer;
+}
+```
+
+[**unterminated-string-strncpy-stpncpy**](https://github.com/0xdea/semgrep-rules/blob/main/c/unterminated-string-strncpy-stpncpy.yaml). Lack of explicit null-termination after strncpy() and stpncpy().
+
+```c
+weggli -R '$fn=(strncpy|stpncpy|strlcpy|strncpy|wcpncpy|wcsncpy)' '{$fn($dst, $src, _);not: $dst[_] = _;}' test_cases/unterminated-string-strncpy-stpncpy.c
+test_cases/unterminated-string-strncpy-stpncpy.c:8
+void copy_string1(char *string)
+{
+	char buf[BUFSIZE];
+
+	// ruleid: raptor-unterminated-string-strncpy-stpncpy
+	strncpy(buf, string, BUFSIZE);
+}
+test_cases/unterminated-string-strncpy-stpncpy.c:16
+void copy_string2(char *string)
+{
+	char buf[BUFSIZE];
+
+	// ruleid: raptor-unterminated-string-strncpy-stpncpy
+	stpncpy(buf, string, BUFSIZE);
+}
+test_cases/unterminated-string-strncpy-stpncpy.c:24
+int test_func()
+{
+	char longString[] = "String signifying nothing";
+	char shortString[16];
+
+	// ruleid: raptor-unterminated-string-strncpy-stpncpy
+	strncpy(shortString, longString, 16);
+	printf("The last character in shortString is: %c (%1$x)\n", shortString[15]);
+	return 0;
+}
+test_cases/unterminated-string-strncpy-stpncpy.c:51
+void authenticate(int sockfd)
+{
+..
+	read_string(buffer, size);
+
+	switch(cmd) {
+	case USERNAME:
+		// ruleid: raptor-unterminated-string-strncpy-stpncpy
+		strncpy(user, buffer, sizeof(user));
+		if (!is_username_valid(user))
+			goto fail;
+		break;
+	// ...
+	}
+..
+}
+test_cases/unterminated-string-strncpy-stpncpy.c:79
+int process_email(char *email)
+{
+	char buf[1024], *domain;
+
+	// ruleid: raptor-unterminated-string-strncpy-stpncpy
+	strncpy(buf, email, sizeof(buf));
+
+	domain = strchr(buf, '@');
+	if(!domain)
+		return -1;
+
+..
+}
+```
+
+
 * [**off-by-one**](https://github.com/0xdea/semgrep-rules/blob/main/c/off-by-one.yaml). Potential off-by-one error.
 * [**pointer-subtraction**](https://github.com/0xdea/semgrep-rules/blob/main/c/pointer-subtraction.yaml). Potential use of pointer subtraction to determine size.
 * [**unsafe-ret-snprintf-vsnprintf**](https://github.com/0xdea/semgrep-rules/blob/main/c/unsafe-ret-snprintf-vsnprintf.yaml). Potentially unsafe use of the return value of snprintf() and vsnprintf().
