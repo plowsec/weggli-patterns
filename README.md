@@ -237,6 +237,190 @@ int parse_stuff(char* Ctx)
 Each finding must be analyzed to check if the freed buffer is used by the caller or freed one more time by mistake.
 
 
+
+# 0xea semgrep's rules
+
+## buffer overflows
+
+[**insecure-api-gets**](https://github.com/0xdea/semgrep-rules/blob/main/c/insecure-api-gets.yaml). Use of the insecure API function gets().
+
+```c
+weggli '{gets(_);}' test_cases/insecure-api-gets.c 
+/test_cases/insecure-api-gets.c:7
+void get_string()
+{
+	char buf[BUFSIZE];
+
+	// ruleid: raptor-insecure-api-gets
+	gets(buf);
+}
+```
+
+
+[**insecure-api-strcpy-stpcpy-strcat**](https://github.com/0xdea/semgrep-rules/blob/main/c/insecure-api-strcpy-stpcpy-strcat.yaml). Use of potentially insecure API functions strcpy(), stpcpy(), strcat().
+
+```c
+weggli -R '$fn=(strcpy|stpcpy|strcat|wcscpy|wcpcpy|wcscat)' '{$fn(_);}' test_cases/insecure-api-strcpy-stpcpy-strcat.c
+test_cases/insecure-api-strcpy-stpcpy-strcat.c:74
+int process_email(char *email)
+{
+..
+	// ruleid: raptor-insecure-api-strcpy-stpcpy-strcat
+	strcpy(domain, delim);
+
+	if (!strchr(delim, '.'))
+		// ruleid: raptor-insecure-api-strcpy-stpcpy-strcat
+		strcat(domain, default_domain);
+
+	// ...
+}
+test_cases/insecure-api-strcpy-stpcpy-strcat.c:105
+void process_address(int sockfd)
+{
+..
+
+	if (ptr)
+       		*ptr++ = '\0';
+
+	// ruleid: raptor-insecure-api-strcpy-stpcpy-strcat
+   	strcpy(username, netbuf);
+
+	if (ptr)
+		// ruleid: raptor-insecure-api-strcpy-stpcpy-strcat
+		strcpy(domain, ptr);
+
+..
+}
+```
+
+
+[**insecure-api-sprintf-vsprintf**](https://github.com/0xdea/semgrep-rules/blob/main/c/insecure-api-sprintf-vsprintf.yaml). Use of potentially insecure API functions sprintf() and vsprintf().
+     
+This one is harder to make using weggli because of FMT regex.
+
+
+[**insecure-api-scanf-etc**](https://github.com/0xdea/semgrep-rules/blob/main/c/insecure-api-scanf-etc.yaml). Use of potentially insecure API functions in the scanf() family.
+
+Same
+
+[**incorrect-use-of-strncat**](https://github.com/0xdea/semgrep-rules/blob/main/c/incorrect-use-of-strncat.yaml). Wrong size argument passed to strncat().
+
+Unfortunately, it's not possible to match buffer length with weggli: https://github.com/weggli-rs/weggli/issues/59
+So, this one won't work: `weggli -v '{_ $dst[$len];strncat($dst, _, $len);}' test_cases/incorrect-use-of-strncat.c`
+If you run this one instead, you can match them with many false positive.
+
+For the other queries of the pattern [here](https://github.com/0xdea/semgrep-rules/blob/main/c/incorrect-use-of-strncat.yaml), this query works:
+
+```c
+weggli -u '{_ $dst[_];strncat($dst, _, _(strlen(_)));}' -p '{_ $dst[_];strncat($dst, _, sizeof(_));}' test_cases/incorrect-use-of-strncat.c
+test_cases/incorrect-use-of-strncat.c:32
+int copy_data3(char *username)
+{
+	char buf[1024];
+
+	strcpy(buf, "username is: ");
+	// ruleid: raptor-incorrect-use-of-strncat
+	strncat(buf, username, sizeof(buf) - strlen(buf));
+
+	log("%s\n", buf);
+
+	return 0;
+}
+test_cases/incorrect-use-of-strncat.c:45
+int good(char *username)
+{
+	char buf[1024];
+
+	strcpy(buf, "username is: ");
+	// ok: raptor-incorrect-use-of-strncat
+	strncat(buf, username, sizeof(buf) - strlen(buf) - 1);
+
+	log("%s\n", buf);
+
+	return 0;
+}
+test_cases/incorrect-use-of-strncat.c:6
+int copy_data(char *username)
+{
+	char buf[1024];
+
+	strcpy(buf, "username is: ");
+	// ruleid: raptor-incorrect-use-of-strncat
+	strncat(buf, username, sizeof(buf));
+
+	log("%s\n", buf);
+
+	return 0;
+}
+```
+
+
+
+* [**incorrect-use-of-strncpy-stpncpy-strlcpy**](https://github.com/0xdea/semgrep-rules/blob/main/c/incorrect-use-of-strncpy-stpncpy-strlcpy.yaml). Wrong size argument passed to strncpy(), stpncpy(), strlcpy().
+
+Same remark as above.
+
+```c
+weggli -R '$fn=(strncpy|stpncpy|strlcpy)' '{$fn($dst, $src, _($src));}' test_cases/incorrect-use-of-strncpy-stpncpy-strlcpy.c              15:03:23
+test_cases/incorrect-use-of-strncpy-stpncpy-strlcpy.c:3
+void test_func()
+{
+	char source[21] = "the character string";
+	char dest[12];
+
+	// ruleid: raptor-incorrect-use-of-strncpy-stpncpy-strlcpy
+	strncpy(dest, source, sizeof(source)-1);
+}
+test_cases/incorrect-use-of-strncpy-stpncpy-strlcpy.c:120
+int
+main(int argc, char *argv[])
+..
+		up->p_state = (info.pr_nlwp == 0? ZOMBIE : RUNNING);
+		up->p_time = 0;
+		up->p_ctime = 0;
+		up->p_igintr = 0;
+		// ruleid: raptor-incorrect-use-of-strncpy-stpncpy-strlcpy
+		(void) strncpy(up->p_comm, info.pr_fname,
+		    sizeof (info.pr_fname));
+		up->p_args[0] = 0;
+
+		if (up->p_state != NONE && up->p_state != ZOMBIE) {
+			(void) strcpy(fname, "status");
+
+..
+}
+```
+
+* [**incorrect-use-of-sizeof**](https://github.com/0xdea/semgrep-rules/blob/main/c/incorrect-use-of-sizeof.yaml). Accidental use of the sizeof() operator on a pointer instead of its target.
+* [**unterminated-string-strncpy-stpncpy**](https://github.com/0xdea/semgrep-rules/blob/main/c/unterminated-string-strncpy-stpncpy.yaml). Lack of explicit null-termination after strncpy() and stpncpy().
+* [**off-by-one**](https://github.com/0xdea/semgrep-rules/blob/main/c/off-by-one.yaml). Potential off-by-one error.
+* [**pointer-subtraction**](https://github.com/0xdea/semgrep-rules/blob/main/c/pointer-subtraction.yaml). Potential use of pointer subtraction to determine size.
+* [**unsafe-ret-snprintf-vsnprintf**](https://github.com/0xdea/semgrep-rules/blob/main/c/unsafe-ret-snprintf-vsnprintf.yaml). Potentially unsafe use of the return value of snprintf() and vsnprintf().
+* [**unsafe-ret-strlcpy-strlcat**](https://github.com/0xdea/semgrep-rules/blob/main/c/unsafe-ret-strlcpy-strlcat.yaml). Potentially unsafe use of the return value of strlcpy() and strlcat().
+* [**write-into-stack-buffer**](https://github.com/0xdea/semgrep-rules/blob/main/c/write-into-stack-buffer.yaml). Direct writes into buffers allocated on the stack.
+
+## miscellaneous
+
+
+[**argv-envp-access**](https://github.com/0xdea/semgrep-rules/blob/main/c/argv-envp-access.yaml). Command-line argument or environment variable access.
+
+`weggli -R '$arg=(argv|envp)' '{$arg;}' test_cases/argv-envp-access.c`
+
+```c
+test_cases/argv-envp-access.c:6
+int main(int argc, char** argv)
+{
+	char cmd[CMD_MAX] = "/usr/bin/cat ";
+	// ruleid: raptor-argv-envp-access
+	strcat(cmd, argv[1]);
+	system(cmd);
+
+	return 0;
+}
+```
+
+
+
 # Original examples
 
 Examples by felixwilhelm
